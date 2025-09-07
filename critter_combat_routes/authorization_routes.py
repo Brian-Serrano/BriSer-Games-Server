@@ -4,14 +4,15 @@ import bcrypt
 import jwt
 from flask import Blueprint, request, jsonify
 
-from config import db, api
+from config import db, api, limiter
 from critter_combat_utils.database import Player
 from critter_combat_utils.utils import validate_username, validate_email, validate_password
 
-authorization_routes = Blueprint("authorization_routes", __name__)
+authorization_routes = Blueprint("cc_authorization_routes", __name__)
 
 
 @authorization_routes.route("/sign_up", methods=["POST"])
+@limiter.limit("5 per hour")
 def sign_up():
     data = request.json
 
@@ -47,6 +48,7 @@ def sign_up():
 
 
 @authorization_routes.route("/log_in", methods=["POST"])
+@limiter.limit("5 per hour")
 def log_in():
     data = request.json
 
@@ -70,6 +72,7 @@ def log_in():
 
 
 @authorization_routes.route("/check_login", methods=["GET"])
+@limiter.limit("10 per minute")
 def check_login():
     token = request.headers['Authorization']
 

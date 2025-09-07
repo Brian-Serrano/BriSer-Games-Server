@@ -2,12 +2,12 @@ from config import db
 
 
 class Level(db.Model):
-    __bind_key__ = "critter_combat"
+    __tablename__ = "critter_combat_level"
 
     level_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     level_name = db.Column(db.String(20), nullable=False, default="Unnamed 1")
     level_description = db.Column(db.String(200), nullable=False, default="No description provided")
-    creator_id = db.Column(db.Integer, db.ForeignKey("player.player_id"), nullable=False)
+    creator_id = db.Column(db.Integer, db.ForeignKey("critter_combat_player.player_id"), nullable=False)
     version = db.Column(db.String(10), nullable=False, default="1.0")
     difficulty = db.Column(db.String(10), nullable=False, default="NONE")
     downloads = db.Column(db.Integer, nullable=False, default=0)
@@ -19,7 +19,7 @@ class Level(db.Model):
 
 
 class Player(db.Model):
-    __bind_key__ = "critter_combat"
+    __tablename__ = "critter_combat_player"
 
     player_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     player_name = db.Column(db.String(20), nullable=False, default="Player")
@@ -40,10 +40,10 @@ class Player(db.Model):
 
 
 class Comment(db.Model):
-    __bind_key__ = "critter_combat"
+    __tablename__ = "critter_combat_comment"
 
     comment_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    level_id = db.Column(db.Integer, db.ForeignKey("level.level_id"), nullable=False)
-    player_id = db.Column(db.Integer, db.ForeignKey("player.player_id"), nullable=False)
+    level_id = db.Column(db.Integer, db.ForeignKey("critter_combat_level.level_id"), nullable=False)
+    player_id = db.Column(db.Integer, db.ForeignKey("critter_combat_player.player_id"), nullable=False)
     comment_description = db.Column(db.String(300), nullable=False, default="...")
     likes = db.Column(db.Integer, nullable=False, default=0)

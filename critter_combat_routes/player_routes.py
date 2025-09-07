@@ -3,14 +3,15 @@ import os.path
 from flask import Blueprint, request, jsonify, Response
 from werkzeug.utils import secure_filename
 
-from config import db, api
+from config import db, api, supabase, CRITTER_COMBAT_PLAYER_DATA_BUCKET_NAME, limiter
 from critter_combat_routes.authorization_wrapper import authorization_wrapper
 from critter_combat_utils.database import Player
 
-player_routes = Blueprint("player_routes", __name__)
+player_routes = Blueprint("cc_player_routes", __name__)
 
 
 @player_routes.route("/save_player_profile", methods=["POST"])
+@limiter.limit("10 per minute")
 @authorization_wrapper
 def save_player_profile(current_player):
     data = request.json
@@ -37,6 +38,7 @@ def save_player_profile(current_player):
 
 
 @player_routes.route("/load_player_profile", methods=["GET"])
+@limiter.limit("10 per minute")
 @authorization_wrapper
 def load_player_profile(current_player):
     player = Player.query.filter_by(player_id=int(request.args["other_id"]) if "other_id" in request.args else current_player["player_id"]).first()
@@ -61,29 +63,48 @@ def load_player_profile(current_player):
 
 
 @player_routes.route("/save_player_data", methods=["POST"])
+@limiter.limit("10 per minute")
 @authorization_wrapper
 def save_player_data(current_player):
     file_name = secure_filename(str(current_player["player_id"]) + ".playerdata")
-    file_full_name = os.path.join(api.config['CRITTER_COMBAT_PLAYER_DATA_PATH'], file_name)
 
     data_file = request.files["data"]
 
-    with open(file_full_name, 'wb') as file:
-        while chunk := data_file.stream.read(8192):
-            file.write(chunk)
+    file_bytes = data_file.read()
+
+    res = supabase.storage.from_(CRITTER_COMBAT_PLAYER_DATA_BUCKET_NAME).upload(
+        file_name,
+        file_bytes,
+        {
+            "content-type": data_file.mimetype,
+            "upsert": "true"
+        }
+    )
+
+    if isinstance(res, dict) and "error" in res:
+        return jsonify({"error": "Supabase Error", "details": res["error"]["message"]}), 400
 
     return jsonify({"message": "Your data has successfully backed up"}), 201
 
 
 @player_routes.route("/load_player_data", methods=["GET"])
+@limiter.limit("10 per minute")
 @authorization_wrapper
 def load_player_data(current_player):
     file_name = secure_filename(str(current_player["player_id"]) + ".playerdata")
-    file_full_name = os.path.join(api.config['CRITTER_COMBAT_PLAYER_DATA_PATH'], file_name)
+
+    res = supabase.storage.from_(CRITTER_COMBAT_PLAYER_DATA_BUCKET_NAME).download(file_name)
+
+    if res is None or isinstance(res, dict) and "error" in res:
+        return jsonify({"error": "Supabase Error", "details": "File not found"}), 404
 
     def generate():
-        with open(file_full_name, 'rb') as file:
-            while chunk := file.read(8192):
-                yield chunk
+        chunk_size = 8192
+        for i in range(0, len(res), chunk_size):
+            yield res[i: i + chunk_size]
 
-    return generate(), {"Content-Type": "application/zip", "Content-Length": os.path.getsize(file_full_name)}
+    return generate(), {
+        "Content-Type": "application/zip",
+        "Content-Length": str(len(res)),
+        "Content-Disposition": f'attachment; filename="{file_name}"'
+    }

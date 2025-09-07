@@ -1,14 +1,15 @@
 from flask import Blueprint, request, jsonify
 
-from config import db
+from config import db, limiter
 from critter_combat_routes.authorization_wrapper import authorization_wrapper
 from critter_combat_utils.database import Comment
 from critter_combat_utils.utils import comment_to_response
 
-comment_routes = Blueprint("comment_routes", __name__)
+comment_routes = Blueprint("cc_comment_routes", __name__)
 
 
 @comment_routes.route("/get_page_comments", methods=["GET"])
+@limiter.limit("50 per minute")
 @authorization_wrapper
 def get_page_comments(player):
     page = int(request.args["page"] if "page" in request.args else 0)
@@ -34,6 +35,7 @@ def get_page_comments(player):
 
 
 @comment_routes.route("/get_page_player_comments", methods=["GET"])
+@limiter.limit("50 per minute")
 @authorization_wrapper
 def get_page_player_comments(player):
     page = int(request.args["page"] if "page" in request.args else 0)
@@ -54,6 +56,7 @@ def get_page_player_comments(player):
 
 
 @comment_routes.route("/like_comment", methods=["POST"])
+@limiter.limit("30 per minute")
 @authorization_wrapper
 def like_comment(player):
     data = request.json

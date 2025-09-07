@@ -6,16 +6,16 @@ import bleach
 from flask import Blueprint, request, jsonify
 from werkzeug.utils import secure_filename
 
-import config
-from config import db, api
+from config import db, api, supabase, ALNUM_SP_PATTERN, DESC_VAL_PATTERN, CRITTER_COMBAT_LEVELS_BUCKET_NAME, limiter
 from critter_combat_routes.authorization_wrapper import authorization_wrapper
 from critter_combat_utils.database import Level, Comment
 from critter_combat_utils.utils import level_to_response, increase_version, check_for_bad_word, is_number
 
-level_routes = Blueprint("level_routes", __name__)
+level_routes = Blueprint("cc_level_routes", __name__)
 
 
 @level_routes.route("/upload_created_level", methods=["POST"])
+@limiter.limit("10 per minute")
 @authorization_wrapper
 def upload_created_level(player):
     data = json.loads(request.form["level_metadata"])
@@ -31,7 +31,7 @@ def upload_created_level(player):
         return jsonify({"error": "Invalid level name", "details": "Level name should be up to 20 characters"}), 400
     if check_for_bad_word(data["level_name"]):
         return jsonify({"error": "Invalid level name", "details": "Level name contains inappropriate words"}), 400
-    if not re.match(config.ALNUM_SP_PATTERN, data["level_name"]):
+    if not re.match(ALNUM_SP_PATTERN, data["level_name"]):
         return jsonify({"error": "Invalid level name", "details": "Level name contains invalid characters"}), 400
 
     # level description validation
@@ -39,7 +39,7 @@ def upload_created_level(player):
         return jsonify({"error": "Invalid level description", "details": "Level description should be up to 200 characters"}), 400
     if check_for_bad_word(data["level_description"]):
         return jsonify({"error": "Invalid level description", "details": "Level description contains inappropriate words"}), 400
-    if not re.match(config.DESC_VAL_PATTERN, data["level_description"]):
+    if not re.match(DESC_VAL_PATTERN, data["level_description"]):
         return jsonify({"error": "Invalid level description", "details": "Level description contains invalid characters"}), 400
 
     # difficulty validation
@@ -75,9 +75,19 @@ def upload_created_level(player):
 
         level_file_name = secure_filename(str(existing_level.level_id) + ".cclvl")
 
-        with open(os.path.join(api.config['CRITTER_COMBAT_LEVELS_PATH'], level_file_name), 'wb') as file:
-            while chunk := level_data.stream.read(8192):
-                file.write(chunk)
+        file_bytes = level_data.read()
+
+        res = supabase.storage.from_(CRITTER_COMBAT_LEVELS_BUCKET_NAME).upload(
+            level_file_name,
+            file_bytes,
+            {
+                "content-type": level_data.mimetype,
+                "upsert": "true"
+            }
+        )
+
+        if isinstance(res, dict) and "error" in res:
+            return jsonify({"error": "Supabase Error", "details": res["error"]["message"]}), 400
 
         db.session.commit()
 
@@ -98,14 +108,25 @@ def upload_created_level(player):
 
         level_file_name = secure_filename(str(new_level.level_id) + ".cclvl")
 
-        with open(os.path.join(api.config['CRITTER_COMBAT_LEVELS_PATH'], level_file_name), 'wb') as file:
-            while chunk := level_data.stream.read(8192):
-                file.write(chunk)
+        file_bytes = level_data.read()
+
+        res = supabase.storage.from_(CRITTER_COMBAT_LEVELS_BUCKET_NAME).upload(
+            level_file_name,
+            file_bytes,
+            {
+                "content-type": level_data.mimetype,
+                "upsert": "true"
+            }
+        )
+
+        if isinstance(res, dict) and "error" in res:
+            return jsonify({"error": "Supabase Error", "details": res["error"]["message"]}), 400
 
         return jsonify({"version": new_level.version, "level_id": new_level.level_id}), 201
 
 
 @level_routes.route("/download_online_level", methods=["GET"])
+@limiter.limit("10 per minute")
 @authorization_wrapper
 def download_online_level(player):
     level_id = request.args["level_id"]
@@ -121,19 +142,28 @@ def download_online_level(player):
     level.downloads += 1
 
     file_name = secure_filename(level_id + ".cclvl")
-    file_full_name = os.path.join(api.config['CRITTER_COMBAT_LEVELS_PATH'], file_name)
+
+    res = supabase.storage.from_(CRITTER_COMBAT_LEVELS_BUCKET_NAME).download(file_name)
+
+    if res is None or isinstance(res, dict) and "error" in res:
+        return jsonify({"error": "Supabase Error", "details": "File not found"}), 404
 
     def generate():
-        with open(file_full_name, 'rb') as file:
-            while chunk := file.read(8192):
-                yield chunk
+        chunk_size = 8192
+        for i in range(0, len(res), chunk_size):
+            yield res[i: i + chunk_size]
 
     db.session.commit()
 
-    return generate(), {"Content-Type": "application/octet-stream", "Content-Length": os.path.getsize(file_full_name)}
+    return generate(), {
+        "Content-Type": "application/octet-stream",
+        "Content-Length": str(len(res)),
+        "Content-Disposition": f'attachment; filename="{file_name}"'
+    }
 
 
 @level_routes.route("/like_level", methods=["POST"])
+@limiter.limit("30 per minute")
 @authorization_wrapper
 def like_level(player):
     data = request.json
@@ -151,6 +181,7 @@ def like_level(player):
 
 
 @level_routes.route("/comment_on_level", methods=["POST"])
+@limiter.limit("2 per minute")
 @authorization_wrapper
 def comment_on_level(player):
     data = request.json
@@ -164,7 +195,7 @@ def comment_on_level(player):
         return jsonify({"error": "Invalid comment", "details": "Comment should be up to 100 characters"}), 400
     if check_for_bad_word(data["description"]):
         return jsonify({"error": "Invalid comment", "details": "Comment contains inappropriate words"}), 400
-    if not re.match(config.DESC_VAL_PATTERN, data["description"]):
+    if not re.match(DESC_VAL_PATTERN, data["description"]):
         return jsonify({"error": "Invalid comment", "details": "Comment contains invalid characters"}), 400
 
     new_comment = Comment(
@@ -180,6 +211,7 @@ def comment_on_level(player):
 
 
 @level_routes.route("/get_page_online_levels", methods=["GET"])
+@limiter.limit("50 per minute")
 @authorization_wrapper
 def get_page_online_levels(player):
     page = int(request.args["page"] if "page" in request.args else 0)
@@ -202,6 +234,7 @@ def get_page_online_levels(player):
 
 
 @level_routes.route("/get_page_player_levels", methods=["GET"])
+@limiter.limit("50 per minute")
 @authorization_wrapper
 def get_page_player_levels(player):
     page = int(request.args["page"] if "page" in request.args else 0)
