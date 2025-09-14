@@ -10,6 +10,8 @@ import critter_combat_routes as ccr
 import critter_combat_utils as ccu
 import room_escape_routes as rer
 import room_escape_utils as reu
+import td_rubix_routes as trr
+import td_rubix_utils as tru
 
 api.register_blueprint(ccr.player_routes, url_prefix="/cc_player_routes")
 api.register_blueprint(ccr.level_routes, url_prefix="/cc_level_routes")
@@ -21,6 +23,9 @@ api.register_blueprint(bdr.authorization_routes, url_prefix="/bd_authorization_r
 
 api.register_blueprint(rer.player_routes, url_prefix="/re_player_routes")
 api.register_blueprint(rer.authorization_routes, url_prefix="/re_authorization_routes")
+
+api.register_blueprint(trr.player_routes, url_prefix="/tr_player_routes")
+api.register_blueprint(trr.authorization_routes, url_prefix="/tr_authorization_routes")
 
 api.register_error_handler(jwt.ExpiredSignatureError, ccu.handle_jwt_expired_signature_error)
 api.register_error_handler(jwt.InvalidTokenError, ccu.handle_jwt_invalid_token_error)
@@ -51,6 +56,16 @@ api.register_error_handler(KeyError, reu.handle_key_error)
 api.register_error_handler(TypeError, reu.handle_type_error)
 api.register_error_handler(ValueError, reu.handle_value_error)
 api.register_error_handler(Exception, reu.handle_general_error)
+
+api.register_error_handler(jwt.ExpiredSignatureError, tru.handle_jwt_expired_signature_error)
+api.register_error_handler(jwt.InvalidTokenError, tru.handle_jwt_invalid_token_error)
+api.register_error_handler(IntegrityError, tru.handle_integrity_error)
+api.register_error_handler(OperationalError, tru.handle_operational_error)
+api.register_error_handler(JSONDecodeError, tru.handle_json_error)
+api.register_error_handler(KeyError, tru.handle_key_error)
+api.register_error_handler(TypeError, tru.handle_type_error)
+api.register_error_handler(ValueError, tru.handle_value_error)
+api.register_error_handler(Exception, tru.handle_general_error)
 
 
 if __name__ == '__main__':

@@ -1,0 +1,2 @@
+from .authorization_routes import authorization_routes
+from .player_routes import player_routes
