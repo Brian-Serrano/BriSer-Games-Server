@@ -2,25 +2,25 @@ from flask import Blueprint, request, jsonify
 from sqlalchemy.sql.expression import case
 from werkzeug.utils import secure_filename
 
-from room_escape_routes.authorization_wrapper import authorization_wrapper
-from config import db, limiter, supabase, ROOM_ESCAPE_PLAYER_DATA_BUCKET_NAME
-from room_escape_utils.database import Player
-from room_escape_utils.utils import leaderboard_to_response
+from config import db, limiter, supabase, CUBE_JUMP_PLAYER_DATA_BUCKET_NAME
+from cube_jump_routes.authorization_wrapper import authorization_wrapper
+from cube_jump_utils.database import Player
+from cube_jump_utils.utils import leaderboard_to_response
 
-player_routes = Blueprint("re_player_routes", __name__)
+player_routes = Blueprint("cj_player_routes", __name__)
 
 
 @player_routes.route("/save_player_data", methods=["POST"])
 @limiter.limit("10 per minute")
 @authorization_wrapper
 def save_player_data(current_player):
-    file_name = secure_filename(str(current_player["player_id"]) + ".re")
+    file_name = secure_filename(str(current_player["player_id"]) + ".cj")
 
     data_file = request.files["data"]
 
     file_bytes = data_file.read()
 
-    res = supabase.storage.from_(ROOM_ESCAPE_PLAYER_DATA_BUCKET_NAME).upload(
+    res = supabase.storage.from_(CUBE_JUMP_PLAYER_DATA_BUCKET_NAME).upload(
         file_name,
         file_bytes,
         {
@@ -39,9 +39,9 @@ def save_player_data(current_player):
 @limiter.limit("10 per minute")
 @authorization_wrapper
 def load_player_data(current_player):
-    file_name = secure_filename(str(current_player["player_id"]) + ".re")
+    file_name = secure_filename(str(current_player["player_id"]) + ".cj")
 
-    res = supabase.storage.from_(ROOM_ESCAPE_PLAYER_DATA_BUCKET_NAME).download(file_name)
+    res = supabase.storage.from_(CUBE_JUMP_PLAYER_DATA_BUCKET_NAME).download(file_name)
 
     if res is None or isinstance(res, dict) and "error" in res:
         return jsonify({"error": "Supabase Error", "details": "File not found"}), 404
@@ -68,9 +68,7 @@ def save_leaderboard_data(current_player):
     if not player:
         return jsonify({"error": "Player dont exist", "details": "Player dont exist"}), 400
 
-    player.total_coins = int(data["total_coins"])
-    player.level = int(data["level"])
-    player.high_score = int(data["high_score"])
+    player.highscore = int(data["highscore"])
 
     db.session.commit()
 
@@ -80,38 +78,21 @@ def save_leaderboard_data(current_player):
 @limiter.limit("50 per minute")
 @authorization_wrapper
 def get_leaderboard(current_player):
-    leaderboard_type = request.args["type"]
     around = request.args.get("around", "false").lower() in ("true", "1", "yes")
-    
-    if leaderboard_type not in ["coins", "level", "high_score"]:
-        return jsonify({"error": "Invalid leaderboard type", "details": "Invalid leaderboard type"}), 400
 
     player = Player.query.filter_by(player_id=current_player["player_id"]).first()
 
     if not player:
         return jsonify({"error": "Player dont exist", "details": "Player dont exist"}), 400
 
-    value = player.total_coins
-    column = Player.total_coins
-
-    if leaderboard_type == "coins":
-        value = player.total_coins
-        column = Player.total_coins
-    if leaderboard_type == "level":
-        value = player.level
-        column = Player.level
-    if leaderboard_type == "high_score":
-        value = player.high_score
-        column = Player.high_score
-
     if around:
-        rank, response = get_leaderboard_around(value, column, leaderboard_type, current_player["player_id"])
+        rank, response = get_leaderboard_around(player.highscore, Player.highscore, current_player["player_id"])
         return jsonify({"rank": rank, "leaderboard": response}), 200
     else:
-        rank, response = get_top_50_leaderboard(value, column, leaderboard_type, current_player["player_id"])
+        rank, response = get_top_50_leaderboard(player.highscore, Player.highscore, current_player["player_id"])
         return jsonify({"rank": rank, "leaderboard": response}), 200
 
-def get_leaderboard_around(value, column, leaderboard_type, player_id):
+def get_leaderboard_around(value, column, player_id):
     total_players = Player.query.filter(column > 0).count()
     higher_value = Player.query.filter(column > value).count()
     rank = higher_value + 1
@@ -132,9 +113,9 @@ def get_leaderboard_around(value, column, leaderboard_type, player_id):
                .offset(start_rank - 1)
                .limit(end_rank - start_rank + 1).all())
 
-    return rank, [leaderboard_to_response(x, i, leaderboard_type) for i, x in enumerate(players, start=start_rank)]
+    return rank, [leaderboard_to_response(x, i) for i, x in enumerate(players, start=start_rank)]
 
-def get_top_50_leaderboard(value, column, leaderboard_type, player_id):
+def get_top_50_leaderboard(value, column, player_id):
     higher_value = Player.query.filter(column > value).count()
     rank = higher_value + 1
 
@@ -142,4 +123,4 @@ def get_top_50_leaderboard(value, column, leaderboard_type, player_id):
                .order_by(column.desc(), case((Player.player_id == player_id, 0), else_=1))
                .limit(50).all())
 
-    return rank, [leaderboard_to_response(x, i + 1, leaderboard_type) for i, x in enumerate(players)]
+    return rank, [leaderboard_to_response(x, i + 1) for i, x in enumerate(players)]
