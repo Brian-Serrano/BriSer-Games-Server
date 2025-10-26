@@ -1,0 +1,27 @@
+from datetime import datetime, UTC
+
+from config import db
+
+
+class Player(db.Model):
+    __tablename__ = "forty_one_player"
+
+    player_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    player_name = db.Column(db.String(20), nullable=False, default="Player")
+    email = db.Column(db.String(100), nullable=False, default="player@nothing.com")
+    password = db.Column(db.String(128), nullable=False, default="player123")
+
+    # Refresh tokens stored per user (optional: allow multiple sessions)
+    refresh_tokens = db.relationship("FORefreshToken", backref="player", lazy=True)
+
+
+class FORefreshToken(db.Model):
+    __tablename__ = "forty_one_refresh_token"
+
+    id = db.Column(db.Integer, primary_key=True)
+    token = db.Column(db.String(255), unique=True, nullable=False, index=True)
+    expires_at = db.Column(db.String, nullable=False)
+    player_id = db.Column(db.Integer, db.ForeignKey("forty_one_player.player_id"), nullable=False)
+
+    def is_expired(self):
+        return datetime.now(UTC) > datetime.fromisoformat(self.expires_at)

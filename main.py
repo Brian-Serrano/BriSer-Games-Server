@@ -4,16 +4,24 @@ import jwt
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from config import api, db
+
 import blade_defense_routes as bdr
 import blade_defense_utils as bdu
+
 import critter_combat_routes as ccr
 import critter_combat_utils as ccu
+
 import room_escape_routes as rer
 import room_escape_utils as reu
+
 import td_rubix_routes as trr
 import td_rubix_utils as tru
+
 import cube_jump_routes as cjr
 import cube_jump_utils as cju
+
+import forty_one_routes as ffr
+import forty_one_utils as ffu
 
 api.register_blueprint(ccr.player_routes, url_prefix="/cc_player_routes")
 api.register_blueprint(ccr.level_routes, url_prefix="/cc_level_routes")
@@ -31,6 +39,9 @@ api.register_blueprint(trr.authorization_routes, url_prefix="/tr_authorization_r
 
 api.register_blueprint(cjr.player_routes, url_prefix="/cj_player_routes")
 api.register_blueprint(cjr.authorization_routes, url_prefix="/cj_authorization_routes")
+
+api.register_blueprint(ffr.player_routes, url_prefix="/fo_player_routes")
+api.register_blueprint(ffr.authorization_routes, url_prefix="/fo_authorization_routes")
 
 api.register_error_handler(jwt.ExpiredSignatureError, ccu.handle_jwt_expired_signature_error)
 api.register_error_handler(jwt.InvalidTokenError, ccu.handle_jwt_invalid_token_error)
@@ -81,6 +92,16 @@ api.register_error_handler(KeyError, cju.handle_key_error)
 api.register_error_handler(TypeError, cju.handle_type_error)
 api.register_error_handler(ValueError, cju.handle_value_error)
 api.register_error_handler(Exception, cju.handle_general_error)
+
+api.register_error_handler(jwt.ExpiredSignatureError, ffu.handle_jwt_expired_signature_error)
+api.register_error_handler(jwt.InvalidTokenError, ffu.handle_jwt_invalid_token_error)
+api.register_error_handler(IntegrityError, ffu.handle_integrity_error)
+api.register_error_handler(OperationalError, ffu.handle_operational_error)
+api.register_error_handler(JSONDecodeError, ffu.handle_json_error)
+api.register_error_handler(KeyError, ffu.handle_key_error)
+api.register_error_handler(TypeError, ffu.handle_type_error)
+api.register_error_handler(ValueError, ffu.handle_value_error)
+api.register_error_handler(Exception, ffu.handle_general_error)
 
 
 if __name__ == '__main__':

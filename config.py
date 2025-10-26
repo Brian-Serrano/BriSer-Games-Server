@@ -22,6 +22,7 @@ BLADE_DEFENSE_PLAYER_DATA_BUCKET_NAME = "blade_defense_player_data"
 ROOM_ESCAPE_PLAYER_DATA_BUCKET_NAME = "room_escape_player_data"
 TD_RUBIX_PLAYER_DATA_BUCKET_NAME = "td_rubix_player_data"
 CUBE_JUMP_PLAYER_DATA_BUCKET_NAME = "cube_jump_player_data"
+FORTY_ONE_PLAYER_DATA_BUCKET_NAME = "forty_one_player_data"
 
 api.config['UPLOAD_MAX_SIZE'] = 100
 

@@ -1,9 +1,7 @@
-import os.path
-
-from flask import Blueprint, request, jsonify, Response
+from flask import Blueprint, request, jsonify
 from werkzeug.utils import secure_filename
 
-from config import db, api, supabase, CRITTER_COMBAT_PLAYER_DATA_BUCKET_NAME, limiter
+from config import db, supabase, CRITTER_COMBAT_PLAYER_DATA_BUCKET_NAME, limiter
 from critter_combat_routes.authorization_wrapper import authorization_wrapper
 from critter_combat_utils.database import Player
 
