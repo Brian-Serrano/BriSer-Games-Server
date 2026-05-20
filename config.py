@@ -16,8 +16,6 @@ api.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URI")
 api.config['SECRET_KEY'] = "Uttog at nagsasalsal mga kapitbahay ko."
 api.config['API_KEY'] = "Bobo mga kapitbahay ko."
 
-CRITTER_COMBAT_LEVELS_BUCKET_NAME = "critter_combat_levels"
-CRITTER_COMBAT_PLAYER_DATA_BUCKET_NAME = "critter_combat_player_data"
 BLADE_DEFENSE_PLAYER_DATA_BUCKET_NAME = "blade_defense_player_data"
 ROOM_ESCAPE_PLAYER_DATA_BUCKET_NAME = "room_escape_player_data"
 TD_RUBIX_PLAYER_DATA_BUCKET_NAME = "td_rubix_player_data"

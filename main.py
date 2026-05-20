@@ -8,9 +8,6 @@ from config import api, db
 import blade_defense_routes as bdr
 import blade_defense_utils as bdu
 
-import critter_combat_routes as ccr
-import critter_combat_utils as ccu
-
 import room_escape_routes as rer
 import room_escape_utils as reu
 
@@ -22,11 +19,6 @@ import cube_jump_utils as cju
 
 import forty_one_routes as ffr
 import forty_one_utils as ffu
-
-api.register_blueprint(ccr.player_routes, url_prefix="/cc_player_routes")
-api.register_blueprint(ccr.level_routes, url_prefix="/cc_level_routes")
-api.register_blueprint(ccr.comment_routes, url_prefix="/cc_comment_routes")
-api.register_blueprint(ccr.authorization_routes, url_prefix="/cc_authorization_routes")
 
 api.register_blueprint(bdr.player_routes, url_prefix="/bd_player_routes")
 api.register_blueprint(bdr.authorization_routes, url_prefix="/bd_authorization_routes")
@@ -42,16 +34,6 @@ api.register_blueprint(cjr.authorization_routes, url_prefix="/cj_authorization_r
 
 api.register_blueprint(ffr.player_routes, url_prefix="/fo_player_routes")
 api.register_blueprint(ffr.authorization_routes, url_prefix="/fo_authorization_routes")
-
-api.register_error_handler(jwt.ExpiredSignatureError, ccu.handle_jwt_expired_signature_error)
-api.register_error_handler(jwt.InvalidTokenError, ccu.handle_jwt_invalid_token_error)
-api.register_error_handler(IntegrityError, ccu.handle_integrity_error)
-api.register_error_handler(OperationalError, ccu.handle_operational_error)
-api.register_error_handler(JSONDecodeError, ccu.handle_json_error)
-api.register_error_handler(KeyError, ccu.handle_key_error)
-api.register_error_handler(TypeError, ccu.handle_type_error)
-api.register_error_handler(ValueError, ccu.handle_value_error)
-api.register_error_handler(Exception, ccu.handle_general_error)
 
 api.register_error_handler(jwt.ExpiredSignatureError, bdu.handle_jwt_expired_signature_error)
 api.register_error_handler(jwt.InvalidTokenError, bdu.handle_jwt_invalid_token_error)
